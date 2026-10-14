@@ -1,8 +1,16 @@
 """Licencias offline firmadas con Ed25519.
 
-Formato del archivo .lic (JSON):
-    {"payload": {...}, "signature": "<base64>"}
-La firma cubre el JSON canónico del payload (claves ordenadas, sin espacios).
+Formatos aceptados (ambos se validan offline):
+
+  v2 (clave para pegar, recomendado):
+      CM2.<base64url(payload_json)>.<base64url(firma)>
+      La firma Ed25519 cubre los BYTES EXACTOS del payload tal como viajan en la
+      clave: no hace falta canonicalizar, cualquier lenguaje (PHP/sodium, Node,
+      Python) puede emitirla.
+
+  v1 (archivo .lic, legado):
+      {"payload": {...}, "signature": "<base64>"}
+      La firma cubre el JSON canónico (claves ordenadas, sin espacios).
 
 Tipos:
   - event : válida solo para el evento con ese nombre.
@@ -41,6 +49,23 @@ def sign_license(payload: dict, private_key: Ed25519PrivateKey) -> str:
         ensure_ascii=False,
         indent=2,
     )
+
+
+KEY_PREFIX = "CM2."
+
+
+def _b64url_decode(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def sign_key(payload: dict, private_key: Ed25519PrivateKey) -> str:
+    """Genera una clave v2 (para pegar). El payload se serializa una sola vez y se firma tal cual."""
+    raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode()
+    return f"{KEY_PREFIX}{_b64url_encode(raw)}.{_b64url_encode(private_key.sign(raw))}"
 
 
 def load_public_key(b64: str | None = None) -> Ed25519PublicKey:
@@ -86,7 +111,34 @@ class LicenseInfo:
             raise LicenseError(f"Licencia con formato inválido: {exc}") from exc
 
 
+def normalize_key_text(text: str) -> str:
+    """WhatsApp/correo parten líneas y agregan espacios: se eliminan."""
+    text = (text or "").strip()
+    if text.upper().startswith(KEY_PREFIX.upper()):
+        return KEY_PREFIX + "".join(text.split())[len(KEY_PREFIX):]
+    return text
+
+
+def _verify_v2(text: str, public_key: Ed25519PublicKey | None) -> LicenseInfo:
+    try:
+        _, p64, s64 = text.split(".")
+        raw, sig = _b64url_decode(p64), _b64url_decode(s64)
+        payload = json.loads(raw.decode())
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise LicenseError("La clave está incompleta o dañada. Cópiela de nuevo completa.") from exc
+    try:
+        (public_key or load_public_key()).verify(sig, raw)
+    except InvalidSignature as exc:
+        raise LicenseError("La clave no es válida (firma incorrecta).") from exc
+    except ValueError as exc:
+        raise LicenseError("La clave pública de la aplicación no está configurada.") from exc
+    return LicenseInfo.from_payload(payload)
+
+
 def verify_license_text(text: str, public_key: Ed25519PublicKey | None = None) -> LicenseInfo:
+    text = normalize_key_text(text)
+    if text.startswith(KEY_PREFIX):
+        return _verify_v2(text, public_key)
     try:
         doc = json.loads(text)
         payload = doc["payload"]

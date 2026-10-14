@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
 
-from control_maletas.licensing import sign_license  # noqa: E402
+from control_maletas.licensing import sign_key, sign_license  # noqa: E402
 
 
 def load_private(path: str | None) -> Ed25519PrivateKey:
@@ -45,6 +45,8 @@ def main() -> None:
     ap.add_argument("--max-people", type=int)
     ap.add_argument("--key")
     ap.add_argument("--out")
+    ap.add_argument("--legacy-file", action="store_true",
+                    help="emitir archivo .lic v1 en lugar de la clave v2 para pegar")
     a = ap.parse_args()
     if a.type == "event" and not a.event:
         ap.error("--event es obligatorio para licencias de evento")
@@ -61,12 +63,18 @@ def main() -> None:
         "max_people": a.max_people,
         "issued_at": date.today().isoformat(),
     }
-    text = sign_license(payload, load_private(a.key))
+    priv = load_private(a.key)
     out_dir = ROOT / "licenses_out"
     out_dir.mkdir(exist_ok=True)
-    out = Path(a.out) if a.out else out_dir / f"{a.type}-{payload['id']}.lic"
-    out.write_text(text, encoding="utf-8")
-    print(f"Licencia escrita en {out}")
+    if a.legacy_file:
+        out = Path(a.out) if a.out else out_dir / f"{a.type}-{payload['id']}.lic"
+        out.write_text(sign_license(payload, priv), encoding="utf-8")
+        print(f"Licencia escrita en {out}")
+    else:
+        key = sign_key(payload, priv)
+        out = Path(a.out) if a.out else out_dir / f"{a.type}-{payload['id']}.txt"
+        out.write_text(key + "\n", encoding="utf-8")
+        print(f"Clave (copie y envíe por WhatsApp):\n\n{key}\n\nGuardada en {out}")
 
 
 if __name__ == "__main__":
