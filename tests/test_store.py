@@ -113,3 +113,23 @@ def test_export_csv(store, event_id, tmp_path):
     store.register(event_id, "Ana Díaz", "12345678", ["a", "b"])
     n = store.export_csv(event_id, tmp_path / "x.csv")
     assert n == 2
+
+
+def test_event_date_validation(store):
+    with pytest.raises(ValidationError):
+        store.create_event("X", "2026-13-45")
+    with pytest.raises(ValidationError):
+        store.create_event("X", "2026-10-10", "2026-10-01")
+    assert store.create_event("X", "2026-10-01", "2026-10-10")
+
+
+def test_dashboard_queries(store, event_id):
+    a = store.register(event_id, "Ana Díaz", "11111111", ["a", "b"])
+    store.register(event_id, "Luis Paz", "22222222", ["c"])
+    store.deliver(a.id, [a.bultos[0].id])
+    row = store.dashboard_events()[0]
+    assert (row["people"], row["stored"], row["delivered"]) == (2, 2, 1)
+    assert [p.full_name for p in store.recent_people(event_id, 1)] == ["Luis Paz"]
+    pend = store.oldest_pending(event_id)
+    assert {p.full_name for p, _ in pend} == {"Ana Díaz", "Luis Paz"}
+    assert sum(store.registrations_by_hour(event_id)) == 2

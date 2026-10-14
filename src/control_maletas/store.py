@@ -7,6 +7,7 @@ import secrets
 import sqlite3
 import unicodedata
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 from .errors import LimitError, NoCapacityError, ValidationError
@@ -95,6 +96,14 @@ class Store:
         name = (name or "").strip()
         if not name:
             raise ValidationError("El nombre del evento es obligatorio.")
+        starts_at, ends_at = starts_at or None, ends_at or None
+        try:
+            d1 = date.fromisoformat(starts_at) if starts_at else None
+            d2 = date.fromisoformat(ends_at) if ends_at else None
+        except ValueError:
+            raise ValidationError("Las fechas deben tener formato AAAA-MM-DD.") from None
+        if d1 and d2 and d2 < d1:
+            raise ValidationError("La fecha de fin no puede ser anterior al inicio.")
         if not self.licenses.can_create_event(name, self.events_created_count()):
             raise LimitError(
                 f"El modo demo permite solo {DEMO_MAX_EVENTS} evento. "
@@ -225,10 +234,14 @@ class Store:
         if limits.max_people is not None:
             used = max(self.people_count(event_id), self._meta_int(f"people_{event_id}"))
             if used >= limits.max_people:
+                if limits.licensed:
+                    raise LimitError(
+                        f"Su licencia permite registrar hasta {limits.max_people} personas en este "
+                        "evento y ya se alcanzó ese máximo. Active una licencia con mayor capacidad.",
+                        demo=False)
                 raise LimitError(
-                    f"Se alcanzó el límite de {limits.max_people} personas ({limits.label}). "
-                    "Active una licencia para continuar registrando."
-                )
+                    f"La versión demo permite registrar hasta {limits.max_people} personas y ya "
+                    "se alcanzó ese máximo. Active una licencia para continuar registrando.")
         picked = self._allocate(event_id, len(bultos))
         code = self._new_ticket_code(event_id)
         with self.conn:
@@ -345,6 +358,45 @@ class Store:
             (event_id,),
         ).fetchone()
         return {"people": r["people"], "stored": r["stored"], "delivered": r["delivered"]}
+
+    def dashboard_events(self) -> list[sqlite3.Row]:
+        """Una fila por evento con personas y bultos en custodia / entregados."""
+        return self.conn.execute(
+            """SELECT e.id, e.name, e.active, e.starts_at, e.ends_at,
+                      COUNT(DISTINCT p.id) AS people,
+                      COALESCE(SUM(g.status='stored'),0) AS stored,
+                      COALESCE(SUM(g.status='delivered'),0) AS delivered
+               FROM events e
+               LEFT JOIN people p ON p.event_id=e.id
+               LEFT JOIN luggage g ON g.person_id=p.id
+               GROUP BY e.id ORDER BY e.id DESC"""
+        ).fetchall()
+
+    def recent_people(self, event_id: int, limit: int = 5) -> list[PersonRecord]:
+        rows = self.conn.execute(
+            "SELECT * FROM people WHERE event_id=? ORDER BY id DESC LIMIT ?", (event_id, limit)
+        ).fetchall()
+        return [self._hydrate(r) for r in rows]
+
+    def oldest_pending(self, event_id: int, limit: int = 5) -> list[tuple[PersonRecord, str]]:
+        """Personas con equipaje aún en custodia, de la más antigua a la más reciente."""
+        rows = self.conn.execute(
+            """SELECT p.id, MIN(g.stored_at) AS since
+               FROM people p JOIN luggage g ON g.person_id=p.id
+               WHERE p.event_id=? AND g.status='stored'
+               GROUP BY p.id ORDER BY since, p.id LIMIT ?""",
+            (event_id, limit),
+        ).fetchall()
+        return [(self.get_person(r["id"]), r["since"]) for r in rows]
+
+    def registrations_by_hour(self, event_id: int) -> list[int]:
+        counts = [0] * 24
+        for r in self.conn.execute(
+            "SELECT CAST(strftime('%H', created_at) AS INTEGER) h, COUNT(*) c "
+            "FROM people WHERE event_id=? GROUP BY h", (event_id,)
+        ):
+            counts[r["h"]] = r["c"]
+        return counts
 
     def export_csv(self, event_id: int, path: str | Path) -> int:
         rows = self.conn.execute(

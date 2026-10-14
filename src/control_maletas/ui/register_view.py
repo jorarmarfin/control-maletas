@@ -1,7 +1,7 @@
 import customtkinter as ctk
 
 from .. import theme as T
-from ..errors import AppError
+from ..errors import AppError, LimitError
 from ..store import DNI_RE
 from .ticket_dialog import TicketDialog
 from .widgets import AutoScrollFrame, Card, accent_button, font, field, ghost_button, heading, label, muted
@@ -113,6 +113,9 @@ class RegisterView(ctk.CTkFrame):
                 person = store.register(
                     ev["id"], self.name.get(), self.dni.get(), self._bultos(),
                     self.phone.get(), self.notes.get())
+        except LimitError as exc:
+            self.app.show_limit(str(exc), exc.demo)
+            return
         except AppError as exc:
             self.app.notify(str(exc), "error")
             return

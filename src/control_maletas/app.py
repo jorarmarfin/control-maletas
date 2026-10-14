@@ -10,13 +10,16 @@ from . import db
 from .licensing import LicenseManager
 from .store import Store
 from .ui.events_view import EventsView
+from .ui.home_view import HomeView
 from .ui.license_view import LicenseView
+from .ui.limit_dialog import LimitDialog
 from .ui.locations_view import LocationsView
 from .ui.register_view import RegisterView
 from .ui.search_view import SearchView
 from .ui.widgets import font
 
 NAV = [
+    ("home", "🏠  Inicio", HomeView),
     ("register", "🧳  Registrar", RegisterView),
     ("search", "🔍  Buscar / Retirar", SearchView),
     ("locations", "📍  Ubicaciones", LocationsView),
@@ -51,12 +54,13 @@ class App(ctk.CTk):
         self.toast.pack(side="right", padx=16)
 
         self.views = {}
+        self._current = "home"
         for key, _, cls in NAV:
             v = cls(self.content, self)
             v.place(relx=0, rely=0, relwidth=1, relheight=1)
             self.views[key] = v
         self.refresh_status()
-        self.show("register" if self.store.active_event() else "events")
+        self.show("home")
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.update_idletasks()
         self.deiconify()
@@ -97,12 +101,14 @@ class App(ctk.CTk):
 
     def _toggle_theme(self):
         ctk.set_appearance_mode("dark" if self.theme_switch.get() else "light")
+        self.show(self._current)  # re-dibuja vistas con canvas (usan colores resueltos)
 
     def show(self, key):
         for k, b in self.nav_buttons.items():
             b.configure(fg_color=T.YELLOW if k == key else "transparent",
                         text_color=T.NAVY if k == key else T.WHITE,
                         hover_color=T.YELLOW_HOVER if k == key else "#143382")
+        self._current = key
         view = self.views[key]
         view.tkraise()
         if hasattr(view, "on_show"):
@@ -123,6 +129,11 @@ class App(ctk.CTk):
         color = {"ok": T.GREEN, "error": T.RED, "info": T.BLUE}.get(kind, T.BLUE)
         self.toast.configure(text=message, text_color=color)
         self.after(6000, lambda: self.toast.configure(text=""))
+
+    def show_limit(self, message: str, demo: bool = True):
+        """Aviso modal por exceder la versión demo o el máximo de la licencia."""
+        self.notify(message, "error")
+        LimitDialog(self, message, demo)
 
     def _on_close(self):
         try:

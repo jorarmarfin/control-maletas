@@ -40,6 +40,10 @@ python tools/gen_license.py --type master --licensee "Propietario"
 Base de datos en `%APPDATA%\ControlMaletas\maletas.db` (Windows) o `~/.local/share/ControlMaletas/`.
 Al cerrar se guarda una copia en `backups/` (últimas 10). Variable `CONTROL_MALETAS_DATA` cambia la carpeta.
 
+## Pantallas
+- **Inicio:** dashboard (personas por evento, custodia, ocupación, actividad por hora).
+- **Registrar**, **Buscar / Retirar**, **Ubicaciones**, **Eventos**, **Licencia**.
+
 ## Flujo del operador
 1. **Eventos**: crear evento (crea zona A con 50 ubicaciones) y agregar zonas si hace falta.
 2. **Registrar**: DNI, nombre, bultos → se asigna ubicación y se muestra el ticket (QR + código; imprimir o PDF).

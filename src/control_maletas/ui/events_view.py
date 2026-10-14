@@ -4,7 +4,8 @@ from datetime import date
 import customtkinter as ctk
 
 from .. import theme as T
-from ..errors import AppError
+from ..errors import AppError, LimitError
+from .datepicker import DateField
 from .widgets import AutoScrollFrame, Card, Stat, field, ghost_button, heading, label, muted, primary_button
 
 
@@ -24,10 +25,10 @@ class EventsView(ctk.CTkFrame):
         row.pack(fill="x", padx=18, pady=(0, 14))
         f, self.ev_name = field(row, "Nombre del evento", "Ej. Retiro de Semana Santa", width=320)
         f.pack(side="left", padx=(0, 10))
-        f, self.ev_from = field(row, "Inicio (AAAA-MM-DD)", date.today().isoformat(), width=150)
-        f.pack(side="left", padx=(0, 10))
-        f, self.ev_to = field(row, "Fin (AAAA-MM-DD)", "", width=150)
-        f.pack(side="left", padx=(0, 10))
+        self.ev_from = DateField(row, "Inicio", value=date.today())
+        self.ev_from.pack(side="left", padx=(0, 10))
+        self.ev_to = DateField(row, "Fin (opcional)")
+        self.ev_to.pack(side="left", padx=(0, 10))
         primary_button(row, "Crear evento", self._create_event).pack(side="left", pady=(18, 0))
 
         self.events_box = Card(scroll)
@@ -42,6 +43,9 @@ class EventsView(ctk.CTkFrame):
         try:
             eid = self.app.store.create_event(
                 self.ev_name.get(), self.ev_from.get() or None, self.ev_to.get() or None)
+        except LimitError as exc:
+            self.app.show_limit(str(exc), exc.demo)
+            return
         except AppError as exc:
             self.app.notify(str(exc), "error")
             return
