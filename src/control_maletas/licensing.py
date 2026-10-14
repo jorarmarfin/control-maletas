@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 
 from . import license_keys
+from . import machine
 from .errors import LicenseError
 
 DEMO_MAX_EVENTS = 1
@@ -82,6 +83,7 @@ class LicenseInfo:
     starts_at: str | None
     ends_at: str | None
     max_people: int | None
+    machine_id: str | None = None  # opcional: atada a un equipo
 
     def is_valid_on(self, today: date) -> bool:
         if self.starts_at and today < date.fromisoformat(self.starts_at):
@@ -106,6 +108,7 @@ class LicenseInfo:
                 starts_at=p.get("starts_at"),
                 ends_at=p.get("ends_at"),
                 max_people=p.get("max_people"),
+                machine_id=(str(p["machine_id"]) if p.get("machine_id") else None),
             )
         except (KeyError, ValueError, TypeError) as exc:
             raise LicenseError(f"Licencia con formato inválido: {exc}") from exc
@@ -166,13 +169,29 @@ class Limits:
 
 
 class LicenseManager:
-    def __init__(self, conn: sqlite3.Connection, public_key: Ed25519PublicKey | None = None):
+    def __init__(self, conn: sqlite3.Connection, public_key: Ed25519PublicKey | None = None,
+                 fingerprint: str | None = None):
         self.conn = conn
         self._public_key = public_key
+        self._fingerprint = machine.normalize_fingerprint(
+            fingerprint or machine.machine_fingerprint())
+
+    @property
+    def fingerprint(self) -> str:
+        f = self._fingerprint
+        return "-".join(f[i:i + 4] for i in range(0, len(f), 4))
+
+    def _bound_to_other_machine(self, info: LicenseInfo) -> bool:
+        return bool(info.machine_id) and \
+            machine.normalize_fingerprint(info.machine_id) != self._fingerprint
 
     # --- instalación -------------------------------------------------
     def install(self, text: str) -> LicenseInfo:
         info = verify_license_text(text, self._public_key)
+        if self._bound_to_other_machine(info):
+            raise LicenseError(
+                "Esta licencia pertenece a otro equipo. Solicite una licencia para el ID "
+                f"de este equipo: {self.fingerprint}")
         with self.conn:
             self.conn.execute(
                 """INSERT OR REPLACE INTO licenses
@@ -198,7 +217,8 @@ class LicenseManager:
 
     # --- consultas ---------------------------------------------------
     def _valid(self, today: date) -> list[LicenseInfo]:
-        return [l for l in self.installed() if l.is_valid_on(today)]
+        return [l for l in self.installed()
+                if l.is_valid_on(today) and not self._bound_to_other_machine(l)]
 
     def master(self, today: date | None = None) -> LicenseInfo | None:
         today = today or date.today()

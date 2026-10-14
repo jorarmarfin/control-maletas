@@ -125,3 +125,49 @@ def test_lic_file_with_bom_and_extra_fields(conn, private_key):
     key = sign_key(payload(product="cm", notes="x", version="1"), private_key)
     info = mgr.install("﻿" + key + "\r\n")  # .lic de Windows con BOM
     assert info.event == "Retiro Octubre"
+
+
+FP = "ABCD-EFGH-IJKL-MNOP"
+
+
+def _mgr(conn, private_key, fp=FP):
+    return LicenseManager(conn, private_key.public_key(), fingerprint=fp)
+
+
+def test_license_bound_to_this_machine_ok(conn, private_key):
+    from control_maletas.licensing import sign_key
+    mgr = _mgr(conn, private_key)
+    key = sign_key(payload(type="master", event=None, id="m1", machine_id="abcd efgh-ijkl-mnop"), private_key)
+    assert mgr.install(key).machine_id
+    assert mgr.master() is not None
+
+
+def test_license_bound_to_other_machine_rejected(conn, private_key):
+    from control_maletas.licensing import sign_key
+    mgr = _mgr(conn, private_key)
+    key = sign_key(payload(type="master", event=None, id="m2", machine_id="ZZZZ-ZZZZ-ZZZZ-ZZZZ"), private_key)
+    with pytest.raises(LicenseError, match="otro equipo"):
+        mgr.install(key)
+    assert mgr.installed() == []
+
+
+def test_unbound_license_still_valid(conn, private_key):
+    from control_maletas.licensing import sign_key
+    mgr = _mgr(conn, private_key)
+    mgr.install(sign_key(payload(type="master", event=None, id="m3"), private_key))
+    assert mgr.master() is not None
+
+
+def test_db_copied_to_other_machine_ignores_bound_license(conn, private_key):
+    from control_maletas.licensing import sign_key
+    key = sign_key(payload(type="master", event=None, id="m4", machine_id=FP), private_key)
+    _mgr(conn, private_key).install(key)
+    other = _mgr(conn, private_key, fp="QQQQ-QQQQ-QQQQ-QQQQ")
+    assert other.master() is None  # la BD copiada a otro PC no hereda la licencia
+
+
+def test_fingerprint_format_and_stability():
+    import re
+    from control_maletas import machine
+    a, b = machine.machine_fingerprint(), machine.machine_fingerprint()
+    assert a == b and re.fullmatch(r"[A-Z2-7]{4}(-[A-Z2-7]{4}){3}", a)

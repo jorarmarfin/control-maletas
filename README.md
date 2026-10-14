@@ -42,6 +42,10 @@ php tools/php/generar_clave.php "Retiro Octubre" "Parroquia" 2026-10-01 2026-10-
 extensión `sodium` (incluida en PHP ≥ 7.2) y la semilla de `keys/private.key` guardada en el servidor
 (variable de entorno, fuera del webroot). El campo `event` debe coincidir con el nombre del evento en la app.
 
+**Atar a un equipo (opcional):** la pantalla *Licencia* muestra el *ID de este equipo* (`XXXX-XXXX-XXXX-XXXX`).
+Si el cliente lo envía, emita con `--machine-id` (o el parámetro `$machineId` en PHP); la licencia solo
+activará en ese equipo. Sin `machine_id` funciona en cualquier PC.
+
 > La clave pública actual está embebida en `src/control_maletas/license_keys.py`. Si regenera el par con
 > `--force`, las licencias anteriores dejan de ser válidas y hay que recompilar.
 

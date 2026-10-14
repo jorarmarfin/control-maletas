@@ -15,6 +15,18 @@ class LicenseView(ctk.CTkFrame):
         heading(self, "Licencia").pack(anchor="w", pady=(0, 12))
         self.status = Card(self)
         self.status.pack(fill="x", pady=6)
+        mid = Card(self)
+        mid.pack(fill="x", pady=6)
+        row = ctk.CTkFrame(mid, fg_color="transparent")
+        row.pack(fill="x", padx=18, pady=12)
+        col = ctk.CTkFrame(row, fg_color="transparent")
+        col.pack(side="left")
+        muted(col, "ID de este equipo (envíelo al emisor si su licencia va atada al equipo)").pack(anchor="w")
+        self.machine_lbl = ctk.CTkLabel(col, text=self.app.store.licenses.fingerprint,
+                                        font=ctk.CTkFont(family="Consolas", size=18, weight="bold"),
+                                        text_color=T.BLUE, anchor="w")
+        self.machine_lbl.pack(anchor="w")
+        ghost_button(row, "Copiar", self._copy_machine, width=100).pack(side="right")
         self.list_box = Card(self)
         self.list_box.pack(fill="x", pady=6)
         box = Card(self)
@@ -67,6 +79,11 @@ class LicenseView(ctk.CTkFrame):
             label(row, kind, 14, "bold").pack(side="left", padx=12, pady=8)
             muted(row, f"{l.licensee or ''} · {vig}{mx}").pack(side="left")
         ctk.CTkFrame(self.list_box, height=10, fg_color="transparent").pack()
+
+    def _copy_machine(self):
+        self.app.clipboard_clear()
+        self.app.clipboard_append(self.app.store.licenses.fingerprint)
+        self.app.notify("ID del equipo copiado.", "ok")
 
     def _paste(self):
         try:
