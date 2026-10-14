@@ -37,8 +37,8 @@
 | `events` | id, name, starts_at, ends_at, license_id, active, created_at |
 | `zones` | id, event_id, code (A, B…), name, capacity |
 | `locations` | id, zone_id, label (`A-01`), occupied (bool) |
-| `people` | id, event_id, full_name, full_name_norm, dni, phone, notes, created_at |
-| `luggage` | id, person_id, ticket_code (único por evento), description, location_id, status (`stored`/`delivered`), stored_at, delivered_at |
+| `people` | id, event_id, full_name, full_name_norm, dni, phone, notes, ticket_code (único por evento), created_at |
+| `luggage` | id, person_id, ticket_code (copia del de la persona), description, location_id, status (`stored`/`delivered`), stored_at, delivered_at |
 | `meta` | key, value (schema_version) |
 | `licenses` | id, type (`event`/`master`), event_name, starts_at, ends_at, max_people (nullable), raw_file, activated_at |
 

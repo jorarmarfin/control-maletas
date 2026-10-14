@@ -1,0 +1,5 @@
+customtkinter>=5.2.2
+Pillow>=10.0
+qrcode>=7.4
+reportlab>=4.0
+cryptography>=42.0
