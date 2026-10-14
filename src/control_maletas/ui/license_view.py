@@ -5,7 +5,7 @@ import customtkinter as ctk
 from .. import theme as T
 from ..errors import AppError
 from ..licensing import DEMO_MAX_EVENTS, DEMO_MAX_PEOPLE
-from .widgets import Card, accent_button, heading, label, muted
+from .widgets import Card, accent_button, ghost_button, heading, label, muted
 
 
 class LicenseView(ctk.CTkFrame):
@@ -17,8 +17,21 @@ class LicenseView(ctk.CTkFrame):
         self.status.pack(fill="x", pady=6)
         self.list_box = Card(self)
         self.list_box.pack(fill="x", pady=6)
-        accent_button(self, "Activar licencia desde archivo (.lic)…", self._activate).pack(
-            anchor="w", pady=12)
+        box = Card(self)
+        box.pack(fill="x", pady=6)
+        label(box, "Activar con clave", 16, "bold").pack(anchor="w", padx=18, pady=(14, 2))
+        muted(box, "Pegue aquí la clave completa que recibió (empieza con CM2.)").pack(
+            anchor="w", padx=18)
+        self.key_box = ctk.CTkTextbox(box, height=90, font=ctk.CTkFont(size=12),
+                                      border_width=1, border_color=T.BORDER, corner_radius=10)
+        self.key_box.pack(fill="x", padx=18, pady=8)
+        btns = ctk.CTkFrame(box, fg_color="transparent")
+        btns.pack(fill="x", padx=18, pady=(0, 14))
+        accent_button(btns, "🔑  Activar clave", self._activate_key, width=190).pack(side="left")
+        ghost_button(btns, "Pegar del portapapeles", self._paste, width=190, height=46).pack(
+            side="left", padx=10)
+        ghost_button(btns, "Usar archivo .lic…", self._activate, width=160, height=46).pack(
+            side="right")
 
     def on_show(self):
         for w in self.status.winfo_children() + self.list_box.winfo_children():
@@ -54,6 +67,30 @@ class LicenseView(ctk.CTkFrame):
             label(row, kind, 14, "bold").pack(side="left", padx=12, pady=8)
             muted(row, f"{l.licensee or ''} · {vig}{mx}").pack(side="left")
         ctk.CTkFrame(self.list_box, height=10, fg_color="transparent").pack()
+
+    def _paste(self):
+        try:
+            text = self.app.clipboard_get()
+        except Exception:
+            self.app.notify("El portapapeles está vacío.", "error")
+            return
+        self.key_box.delete("1.0", "end")
+        self.key_box.insert("1.0", text.strip())
+
+    def _activate_key(self):
+        text = self.key_box.get("1.0", "end").strip()
+        if not text:
+            self.app.notify("Pegue primero la clave.", "error")
+            return
+        try:
+            info = self.app.store.licenses.install(text)
+        except AppError as exc:
+            self.app.notify(str(exc), "error")
+            return
+        self.key_box.delete("1.0", "end")
+        self.app.notify(f"Licencia activada: {info.type} {info.event or ''}".strip(), "ok")
+        self.app.refresh_status()
+        self.on_show()
 
     def _activate(self):
         path = fd.askopenfilename(parent=self.app, title="Archivo de licencia",

@@ -90,3 +90,30 @@ def test_second_event_allowed_with_matching_event_license(conn, private_key):
         st.create_event("Retiro Octubre")
     mgr.install(sign_license(payload(), private_key))
     st.create_event("Retiro Octubre")
+
+
+def test_v2_key_roundtrip_and_whatsapp_wrapping(conn, private_key):
+    from control_maletas.licensing import sign_key
+    mgr = LicenseManager(conn, private_key.public_key())
+    key = sign_key(payload(), private_key)
+    assert key.startswith("CM2.")
+    wrapped = "\n".join(key[i:i + 40] for i in range(0, len(key), 40))
+    info = mgr.install("  " + wrapped + "\n")
+    assert info.event == "Retiro Octubre"
+    assert len(mgr.installed()) == 1
+
+
+def test_v2_key_tampered_or_truncated(conn, private_key):
+    from control_maletas.licensing import sign_key
+    mgr = LicenseManager(conn, private_key.public_key())
+    key = sign_key(payload(), private_key)
+    head, p, s = key.split(".")
+    bad_payload = payload(max_people=9999)
+    import base64, json
+    forged = base64.urlsafe_b64encode(json.dumps(bad_payload, separators=(",", ":")).encode()).decode().rstrip("=")
+    with pytest.raises(LicenseError):
+        mgr.install(f"{head}.{forged}.{s}")
+    with pytest.raises(LicenseError):
+        mgr.install(key[:-10])
+    with pytest.raises(LicenseError):
+        mgr.install("CM2.basura")

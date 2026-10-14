@@ -27,12 +27,21 @@ secrets `MSIX_PFX_PATH` / `MSIX_PFX_PASSWORD`.
 - **Evento:** válida para un evento (por nombre exacto), con vigencia y máximo de personas opcional.
 - **Maestra:** sin límites.
 
+**Formato de clave (v2, para pegar):** `CM2.<payload>.<firma>`. Se activa en **Licencia → Activar con clave**
+(tolera saltos de línea de WhatsApp). La firma Ed25519 cubre los bytes exactos del payload, por lo que
+puede emitirse desde PHP, Node o Python sin canonicalizar. El formato anterior `.lic` sigue aceptándose.
+
 ```bash
 python tools/gen_keys.py      # una sola vez: crea keys/private.key (NO subir, respaldar) y embebe la pública
 python tools/gen_license.py --type event --event "Retiro Octubre" --licensee "Parroquia" \
-       --from 2026-10-01 --to 2026-10-31 --max-people 500
+       --from 2026-10-01 --to 2026-10-31 --max-people 500        # imprime la clave CM2.…
 python tools/gen_license.py --type master --licensee "Propietario"
+php tools/php/generar_clave.php "Retiro Octubre" "Parroquia" 2026-10-01 2026-10-31 500   # desde PHP (sodium)
 ```
+**Desde su sistema web (PHP):** copie `generar_clave_cm2()` de `tools/php/generar_clave.php`. Solo necesita la
+extensión `sodium` (incluida en PHP ≥ 7.2) y la semilla de `keys/private.key` guardada en el servidor
+(variable de entorno, fuera del webroot). El campo `event` debe coincidir con el nombre del evento en la app.
+
 > La clave pública actual está embebida en `src/control_maletas/license_keys.py`. Si regenera el par con
 > `--force`, las licencias anteriores dejan de ser válidas y hay que recompilar.
 
