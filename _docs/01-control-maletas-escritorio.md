@@ -23,6 +23,7 @@
 - Emisión de licencias: `tools/gen_license.py` (Python) y `tools/php/generar_clave.php` (PHP/sodium) para el sistema web del propietario; el payload admite campos extra opcionales que la app ignora.
 - Licencia **maestra** (del propietario): mismo formato firmado, sin límite de eventos ni de registros, válida en cualquier evento; la emites tú con `tools/gen_license.py --type master`.
 - **Modo sin licencia (demo)**: máximo 1 evento y 5 personas registradas ("usuarios" = personas con equipaje; no hay cuentas de login). Retiro, búsqueda y tickets funcionan normal dentro del límite.
+- **Atado opcional a equipo**: la pantalla Licencia muestra el ID del equipo (`XXXX-XXXX-XXXX-XXXX`, base32, derivado de SHA-256 del identificador del sistema) con botón «Copiar»; si el payload trae `machine_id` debe coincidir (sin espacios/guiones, sin distinguir mayúsculas) o se rechaza con «licencia de otro equipo»; sin `machine_id` no se valida nada.
 - **Aviso modal** destacado al superar la demo o el tope de la licencia, con botón directo a «Activar licencia».
 - **Inicio (dashboard)**: personas por evento, custodia/entregados, ocupación, bultos con más tiempo en custodia, últimos registros, actividad por hora y ocupación por zona.
 - **Selector de fecha** (calendario propio) en inicio/fin del evento, con validación de formato y rango.
@@ -36,7 +37,6 @@
 - Foto del equipaje / webcam.
 - Servidor de licencias online (la emisión ocurre en el sistema web del propietario; la app nunca consulta internet).
 - Revocación de licencias (inviable offline; mitigación: licencias cortas por evento). Candidata a un spec propio con lista de revocados firmada.
-- Atar la licencia a un ID de equipo.
 - Firma con certificado de code signing real (paso opcional por secrets).
 - Impresión directa ESC/POS (se usa impresión del sistema/PDF).
 - Reportes avanzados más allá del dashboard de Inicio y la exportación CSV básica.
@@ -57,7 +57,7 @@
 - Un ticket por persona agrupa sus bultos; ubicación se asigna por bulto (prefiere misma zona).
 - Migraciones por `schema_version` en `meta`.
 - BD en directorio de datos del usuario (`%APPDATA%/ControlMaletas`, `~/.local/share/...`).
-- Payload de licencia (JSON): `id`, `type` (`event`/`master`), `event`, `licensee`, `starts_at`, `ends_at` (`YYYY-MM-DD` o null), `max_people` (int o null), `issued_at`; se ignoran campos desconocidos.
+- Payload de licencia (JSON): `id`, `type` (`event`/`master`), `event`, `licensee`, `starts_at`, `ends_at` (`YYYY-MM-DD` o null), `max_people` (int o null), `issued_at`, `machine_id` (opcional); se ignoran campos desconocidos.
 - Clave v2: `CM2.<base64url(payload)>.<base64url(firma Ed25519)>`; la firma cubre los **bytes exactos** del payload (sin canonicalizar), por lo que cualquier lenguaje puede emitirla.
 - Límites demo (1 evento, 5 personas) fijos en código, con contadores en `meta`; la clave pública va embebida; la privada (semilla de 32 bytes) solo en el emisor, nunca en el repo.
 - El nombre del evento de la licencia debe coincidir con el del evento en la app (sin distinguir mayúsculas).
@@ -116,6 +116,7 @@
 - **Ubicación por estantes con capacidad**: permite saber qué está lleno y localizar rápido.
 - **MSIX sin firma real en CI**: firma opcional vía secrets; sin certificado, instalación solo en modo desarrollador.
 - **Clave `CM2` con firma sobre bytes exactos** en lugar de JSON canónico: evita fallas de interoperabilidad entre PHP/Node/Python. El `.lic` v1 se mantiene solo por compatibilidad.
+- **Atado a equipo opcional** (`machine_id`): licencia por cliente de tipo master, atada solo si el emisor lo pide; la huella no es reversible y no hay validación en línea.
 - **Sin servidor de licencias en la app**: el sistema web del propietario emite y registra; la app solo verifica. Revocación diferida a otro spec.
 - **Calendario propio** en vez de `tkcalendar`: sin dependencias extra y con el tema de la app.
 - **Cuadrículas en un solo canvas** en vez de un botón por ubicación: 300 ubicaciones pasaron de ~5 s a ~0,1 s.

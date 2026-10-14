@@ -43,6 +43,7 @@ def main() -> None:
     ap.add_argument("--from", dest="starts_at", help="YYYY-MM-DD")
     ap.add_argument("--to", dest="ends_at", help="YYYY-MM-DD")
     ap.add_argument("--max-people", type=int)
+    ap.add_argument("--machine-id", help="atar a un equipo: XXXX-XXXX-XXXX-XXXX (opcional)")
     ap.add_argument("--key")
     ap.add_argument("--out")
     ap.add_argument("--legacy-file", action="store_true",
@@ -63,6 +64,8 @@ def main() -> None:
         "max_people": a.max_people,
         "issued_at": date.today().isoformat(),
     }
+    if a.machine_id:
+        payload["machine_id"] = a.machine_id.strip().upper()
     priv = load_private(a.key)
     out_dir = ROOT / "licenses_out"
     out_dir.mkdir(exist_ok=True)

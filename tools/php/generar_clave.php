@@ -26,7 +26,8 @@ function generar_clave_cm2(
     string $licensee,
     ?string $startsAt,
     ?string $endsAt,
-    ?int $maxPeople
+    ?int $maxPeople,
+    ?string $machineId = null   // opcional: 'XXXX-XXXX-XXXX-XXXX' mostrado en la pantalla Licencia
 ): string {
     $seed = base64_decode($seedB64, true);
     if ($seed === false || strlen($seed) !== SODIUM_CRYPTO_SIGN_SEEDBYTES) {
@@ -45,6 +46,9 @@ function generar_clave_cm2(
         'max_people' => $maxPeople,  // int o null (sin límite)
         'issued_at'  => date('Y-m-d'),
     ];
+    if ($machineId !== null && trim($machineId) !== '') {
+        $payload['machine_id'] = strtoupper(trim($machineId)); // solo si se ata a un equipo
+    }
     // Se firman los bytes EXACTOS que viajan en la clave: no hay que canonicalizar nada.
     $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $sig  = sodium_crypto_sign_detached($json, $secret);
