@@ -1,6 +1,6 @@
 # SPEC 01 — Sistema de control de maletas (escritorio)
 
-**Estado:** Draft
+**Estado:** Approved
 **Depende de:** ninguna
 **Fecha:** 2026-10-14
 **Objetivo:** App de escritorio (Python + SQLite + CustomTkinter) para registrar personas y su equipaje, asignar ubicación automática, emitir ticket QR/código, buscar y registrar el retiro, con licencias offline por evento e instaladores Windows (.exe Inno Setup y .msix) generados en GitHub Actions.
