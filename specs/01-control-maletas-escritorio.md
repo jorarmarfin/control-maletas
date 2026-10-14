@@ -1,6 +1,6 @@
 # SPEC 01 — Sistema de control de maletas (escritorio)
 
-**Estado:** Approved
+**Estado:** Implemented
 **Depende de:** ninguna
 **Fecha:** 2026-10-14
 **Objetivo:** App de escritorio (Python + SQLite + CustomTkinter) para registrar personas y su equipaje, asignar ubicación automática, emitir ticket QR/código, buscar y registrar el retiro, con licencias offline por evento e instaladores Windows (.exe Inno Setup y .msix) generados en GitHub Actions.
@@ -37,8 +37,8 @@
 | `events` | id, name, starts_at, ends_at, license_id, active, created_at |
 | `zones` | id, event_id, code (A, B…), name, capacity |
 | `locations` | id, zone_id, label (`A-01`), occupied (bool) |
-| `people` | id, event_id, full_name, full_name_norm, dni, phone, notes, created_at |
-| `luggage` | id, person_id, ticket_code (único por evento), description, location_id, status (`stored`/`delivered`), stored_at, delivered_at |
+| `people` | id, event_id, full_name, full_name_norm, dni, phone, notes, ticket_code (único por evento), created_at |
+| `luggage` | id, person_id, ticket_code (copia del de la persona), description, location_id, status (`stored`/`delivered`), stored_at, delivered_at |
 | `meta` | key, value (schema_version) |
 | `licenses` | id, type (`event`/`master`), event_name, starts_at, ends_at, max_people (nullable), raw_file, activated_at |
 
