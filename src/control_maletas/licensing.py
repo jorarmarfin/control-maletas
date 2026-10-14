@@ -113,7 +113,7 @@ class LicenseInfo:
 
 def normalize_key_text(text: str) -> str:
     """WhatsApp/correo parten líneas y agregan espacios: se eliminan."""
-    text = (text or "").strip()
+    text = (text or "").lstrip("\ufeff").strip()
     if text.upper().startswith(KEY_PREFIX.upper()):
         return KEY_PREFIX + "".join(text.split())[len(KEY_PREFIX):]
     return text

@@ -98,7 +98,7 @@ class LicenseView(ctk.CTkFrame):
         if not path:
             return
         try:
-            text = open(path, encoding="utf-8").read()
+            text = open(path, encoding="utf-8-sig").read()
             info = self.app.store.licenses.install(text)
         except (AppError, OSError) as exc:
             self.app.notify(str(exc), "error")

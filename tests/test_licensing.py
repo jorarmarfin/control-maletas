@@ -117,3 +117,11 @@ def test_v2_key_tampered_or_truncated(conn, private_key):
         mgr.install(key[:-10])
     with pytest.raises(LicenseError):
         mgr.install("CM2.basura")
+
+
+def test_lic_file_with_bom_and_extra_fields(conn, private_key):
+    from control_maletas.licensing import sign_key
+    mgr = LicenseManager(conn, private_key.public_key())
+    key = sign_key(payload(product="cm", notes="x", version="1"), private_key)
+    info = mgr.install("﻿" + key + "\r\n")  # .lic de Windows con BOM
+    assert info.event == "Retiro Octubre"
